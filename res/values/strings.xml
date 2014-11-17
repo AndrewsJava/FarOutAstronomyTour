@@ -4,5 +4,7 @@
     <string name="app_name">Far Out Astronomy Tour</string>
     <string name="hello_world">Hello world!</string>
     <string name="menu_settings">Settings</string>
+    <string name="info">info</string>
+    <string name="units">light-years away</string>
 
 </resources>

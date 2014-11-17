@@ -1,22 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="co.astronomy.harlequinmettle.deepskyexploration"
-  
-    android:installLocation="auto" 
+    android:installLocation="auto"
     android:versionCode="6"
     android:versionName="2.6" >
 
     <uses-sdk
-        android:minSdkVersion="8"
-        android:targetSdkVersion="17" />
+        android:minSdkVersion="11"
+        android:targetSdkVersion="19" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
-        android:label="@string/app_name" 
-        android:theme="@android:style/Theme.NoTitleBar.Fullscreen" 
-          >
-        
+        android:label="@string/app_name"
+        android:theme="@android:style/Theme.NoTitleBar.Fullscreen" >
         > 
         <activity
             android:name="co.astronomy.harlequinmettle.deepskyexploration.DeepSkyViewer"
@@ -27,8 +26,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-        
-           
         <activity
             android:name="co.astronomy.harlequinmettle.deepskyexploration.UniverseExplorerStart"
             android:label="@string/app_name"

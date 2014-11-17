@@ -5,7 +5,6 @@ import java.lang.reflect.Field;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -19,12 +18,18 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.util.LruCache;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
+import android.view.ViewGroup;
+import android.webkit.WebView;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 
-public class DeepSkyViewer extends Activity implements OnTouchListener,
-		SensorEventListener, StringConstantArrays {
+public class DeepSkyViewer extends Activity implements OnTouchListener, SensorEventListener, StringConstantArrays {
 
 	private static final String INDEX = "lastPossition";
 	private static final String SAVE_SIZE = "lastScale";
@@ -32,8 +37,7 @@ public class DeepSkyViewer extends Activity implements OnTouchListener,
 	private static final String GUIDE = "showGuide";
 	private static final float shakeThresholdInGForce = 2.05F;
 	private static final float gravityEarth = SensorManager.GRAVITY_EARTH;
-	private static float x = 0, y = 0, x2 = 0, y2 = 0, xi = 0, yi = 0, x2i = 0,
-			y2i = 0;
+	private static float x = 0, y = 0, x2 = 0, y2 = 0, xi = 0, yi = 0, x2i = 0, y2i = 0;
 	private int fingers = 0, controlsHeight = 40;
 	private static boolean lock = false;
 
@@ -43,18 +47,32 @@ public class DeepSkyViewer extends Activity implements OnTouchListener,
 	private static LruCache<String, Bitmap> dynamicImages;
 	private SensorManager mSensorManager;
 	private Bitmap controlsBM;
+	Button hideMe;
+	private final OnClickListener hideViewOnClickListener = new OnClickListener() {
+
+		@Override
+		public void onClick(View v) {
+			setContentView(myImV);
+			ViewGroup parent = (ViewGroup) v.getParent();
+			parent.removeView(v);
+
+		}
+
+	};
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		hideMe = new Button(this);
+		hideMe.setText("close");
+		hideMe.setOnClickListener(hideViewOnClickListener);
 		// always set metrics for screen width and height
 		getWindowManager().getDefaultDisplay().getMetrics(metrics);
 		controlsHeight = metrics.heightPixels / 12;
 		// stuff? needed for sense detector
 		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-		mSensorManager.registerListener(this,
-				mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
-				SensorManager.SENSOR_DELAY_NORMAL);
+		mSensorManager
+				.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_NORMAL);
 		// my inner class canvas for drawing bitmaps
 		myImV = new MyImageView(this);
 		// my inner class for loading bitmaps off main thread
@@ -62,20 +80,15 @@ public class DeepSkyViewer extends Activity implements OnTouchListener,
 		dynamicImages = new LruCache<String, Bitmap>(2);
 
 		lock = true;
-		new AsyncLruLoader(myImV).execute(myImV.getResIdFromIndex(myImV
-				.getIndex()));
+		new AsyncLruLoader(myImV).execute(myImV.getResIdFromIndex(myImV.getIndex()));
 
-		controlsBM = BitmapFactory.decodeResource(getResources(),
-				R.drawable.controls3graphic);
-		controlsBM = Bitmap.createScaledBitmap(controlsBM,
-				metrics.widthPixels - 1, controlsHeight, true);
+		controlsBM = BitmapFactory.decodeResource(getResources(), R.drawable.controls3graphic);
+		controlsBM = Bitmap.createScaledBitmap(controlsBM, metrics.widthPixels - 1, controlsHeight, true);
 		// are we resuming from before or is it brand new
 		if (savedInstanceState != null) {
 
-			myImV.resetBM(savedInstanceState.getInt(INDEX),
-					savedInstanceState.getFloat(SAVE_SIZE),
-					savedInstanceState.getInt(CATEGORY),
-					savedInstanceState.getBoolean(GUIDE)); 
+			myImV.resetBM(savedInstanceState.getInt(INDEX), savedInstanceState.getFloat(SAVE_SIZE), savedInstanceState.getInt(CATEGORY),
+					savedInstanceState.getBoolean(GUIDE));
 		} else {
 			// start at sun
 			myImV.setBM(0);
@@ -133,24 +146,32 @@ public class DeepSkyViewer extends Activity implements OnTouchListener,
 			break;
 		case MotionEvent.ACTION_UP:
 			fingers--;
-			if (arg1.getX(0) > metrics.widthPixels - 80 && arg1.getY(0) < 40
-					&& Math.abs(x - arg1.getX(0)) < 6
+			if (arg1.getX(0) > metrics.widthPixels - 80 && arg1.getY(0) < 40 && Math.abs(x - arg1.getX(0)) < 6
 					&& Math.abs(y - arg1.getY(0)) < 6) {
 				Uri website = null;
 				if (myImV.getIndex() >= 0)
-					website = Uri.parse(APOD_BASE
-							+ APOD_ADDRESS_TAG[myImV.getIndex()]);
+					website = Uri.parse(APOD_BASE + APOD_ADDRESS_TAG[myImV.getIndex()]);
 				if (myImV.getIndex() < 0)
-					website = Uri.parse(WIKI_BASE
-							+ LOCAL_ASTRONOMY[LOCAL_ASTRONOMY.length
-									+ myImV.getIndex()]);
+					website = Uri.parse(WIKI_BASE + LOCAL_ASTRONOMY[LOCAL_ASTRONOMY.length + myImV.getIndex()]);
 
 				if (website != null) {
-					Intent webIntent = new Intent(Intent.ACTION_VIEW, website);
-					startActivity(webIntent);
+					ScrollView overlay = new ScrollView(this);
+					LinearLayout container = new LinearLayout(this);
+					container.setOrientation(LinearLayout.VERTICAL);
+					overlay.addView(container);
+					container.addView(hideMe);
+
+					WebView webview = new WebView(this);
+
+					container.addView(webview);
+
+					webview.loadUrl(website.toString());
+					// webview.setBackgroundColor(0x00000000);
+					// webview.setLayerType(WebView.LAYER_TYPE_SOFTWARE, null);
+
+					setContentView(overlay);
 				}
-			} else if (arg1.getY(0) > metrics.heightPixels - controlsHeight
-					- 20) {
+			} else if (arg1.getY(0) > metrics.heightPixels - controlsHeight - 20) {
 				if (arg1.getX(0) < metrics.widthPixels / 5) {
 					myImV.dScalar = -0.005f;
 					myImV.repaintOn = true;
@@ -158,22 +179,19 @@ public class DeepSkyViewer extends Activity implements OnTouchListener,
 
 					myImV.dScalar = 0.005f;
 					myImV.repaintOn = true;
-				} else if (arg1.getX(0) > 2 * metrics.widthPixels / 5
-						&& arg1.getX(0) < 3 * metrics.widthPixels / 5) {
+				} else if (arg1.getX(0) > 2 * metrics.widthPixels / 5 && arg1.getX(0) < 3 * metrics.widthPixels / 5) {
 					myImV.displayControlsHelp = !myImV.displayControlsHelp;
 					myImV.repaintOn = false;
 					myImV.dScalar = 0;
-				} else if (arg1.getX(0) > 3 * metrics.widthPixels / 5
-						&& arg1.getX(0) < 4 * metrics.widthPixels / 5) {
+				} else if (arg1.getX(0) > 3 * metrics.widthPixels / 5 && arg1.getX(0) < 4 * metrics.widthPixels / 5) {
 
 					myImV.setBM(1.1f);
-				} else if (arg1.getX(0) > 1 * metrics.widthPixels / 5
-						&& arg1.getX(0) < 2 * metrics.widthPixels / 5) {
+				} else if (arg1.getX(0) > 1 * metrics.widthPixels / 5 && arg1.getX(0) < 2 * metrics.widthPixels / 5) {
 
 					myImV.setBM(-1.1f);
 				}
 
-			}else{
+			} else {
 
 				myImV.displayControlsHelp = false;
 			}
@@ -213,12 +231,10 @@ public class DeepSkyViewer extends Activity implements OnTouchListener,
 			y2i = event.getY(1);
 			// if new touch points are further apart than last increase scale
 
-			if (Math.abs(x2i - xi) > Math.abs(x2 - x)
-					&& Math.abs(y2i - yi) > Math.abs(y2 - y))
+			if (Math.abs(x2i - xi) > Math.abs(x2 - x) && Math.abs(y2i - yi) > Math.abs(y2 - y))
 				myImV.changeScalarBy(0.03f);
 
-			if (Math.abs(x2i - xi) < Math.abs(x2 - x)
-					&& Math.abs(y2i - yi) < Math.abs(y2 - y))
+			if (Math.abs(x2i - xi) < Math.abs(x2 - x) && Math.abs(y2i - yi) < Math.abs(y2 - y))
 				myImV.changeScalarBy(-0.03f);
 
 			// last touch points
@@ -247,12 +263,25 @@ public class DeepSkyViewer extends Activity implements OnTouchListener,
 		boolean repaintOn = false;
 		float textAlpha = 110;
 		float controlsAlpha = 30;
-
+		float textHeight = 0f;
 		private Paint textPaint = new Paint();
+		float scale = 0f;
+		String units;
+		String info;
+		Canvas canvas;
 
 		MyImageView(Context ctx) {
-			super(ctx); 
-				displayControlsHelp = true; 
+			super(ctx);
+			displayControlsHelp = true;
+			units = getString(R.string.units);
+			info = getString(R.string.info);
+			float textHeightDensityPixels = 24.0f;
+
+			// Convert the dips to pixels
+			scale = getContext().getResources().getDisplayMetrics().density;
+			Log.v("scale", "" + scale);
+			textHeight = (int) (textHeightDensityPixels * scale + 0.5f);
+			textPaint.setTextSize(textHeight);
 
 		}
 
@@ -263,45 +292,37 @@ public class DeepSkyViewer extends Activity implements OnTouchListener,
 		 */
 		@Override
 		protected void onDraw(Canvas canvas) {
-canvas.drawARGB(255, 0, 0, 0);
+			this.canvas = canvas;
+			canvas.drawARGB(255, 0, 0, 0);
 			canvas.save();
-	 
+
 			canvas.translate(transX, transY);
 			canvas.scale(scalar, scalar);
 			canvas.drawBitmap(bm, 0, 0, null);
 
 			canvas.restore();
 
-			textPaint.setTextSize(24);
 			if (!repaintOn)
 				textPaint.setAlpha((int) textAlpha);
 			if (index >= 0) {
-				String dist = readableNumber(Long
-						.valueOf(IMAGE_NAMES_ARRAY[index].split("_")[1]));
-				textPaint.measureText(dist);
-				canvas.drawText(" Distance (in Light Years)",
-						10 + textPaint.measureText(dist), 22, textPaint);
+				String dist = readableNumber(Long.valueOf(IMAGE_NAMES_ARRAY[index].split("_")[1]));
+				float textLength = textPaint.measureText(dist);
+				canvas.drawText(units, 10 * scale + textLength, textHeight + 2, textPaint);
 				textPaint.setAlpha((int) 220);
-				canvas.drawText(dist, 5, 22, textPaint);
+				canvas.drawText(dist, 5 * scale, textHeight + 2, textPaint);
 
 			} else
-				canvas.drawText(
-						LOCAL_ASTRONOMY[LOCAL_ASTRONOMY.length
-								+ myImV.getIndex()].split("_")[0], 10, 18,
+				canvas.drawText(LOCAL_ASTRONOMY[LOCAL_ASTRONOMY.length + myImV.getIndex()].split("_")[0], 5 * scale, textHeight + 2,
 						textPaint);
-			// textPaint.setTextSize(14);
 
 			textPaint.setAlpha((int) textAlpha);
-			canvas.drawText("web", metrics.widthPixels - 50, 26, textPaint);
+			canvas.drawText(info, metrics.widthPixels - 50 * scale, textHeight + 2, textPaint);
 			if (repaintOn)
 				textPaint.setAlpha((int) (controlsAlpha));
 			float bWid = metrics.widthPixels / 5;
 			for (int i = 0; i < 5; i++)
-				canvas.drawRect(1 + i * bWid, metrics.heightPixels
-						- controlsHeight, (i + 1) * bWid,
-						metrics.heightPixels - 1, textPaint);
-			canvas.drawBitmap(controlsBM, 1, metrics.heightPixels
-					- controlsHeight, null);
+				canvas.drawRect(1 + i * bWid, metrics.heightPixels - controlsHeight, (i + 1) * bWid, metrics.heightPixels - 1, textPaint);
+			canvas.drawBitmap(controlsBM, 1, metrics.heightPixels - controlsHeight, null);
 			if (repaintOn) {
 				changeScalarBy(dScalar);
 				invalidate();
@@ -309,58 +330,47 @@ canvas.drawARGB(255, 0, 0, 0);
 			if (displayControlsHelp) {
 				// Bitmap uparrow = BitmapFactory.decodeResource(getResources(),
 				// R.drawable.uparrow25a);
-				Paint overlayP = new Paint();
-				overlayP.setARGB(190, 190, 190, 190);
-				canvas.drawRect(0, 0, metrics.widthPixels,
-						metrics.heightPixels, overlayP);
+				drawTransparentBackground();
 				Paint overlayTextP = new Paint();
 				overlayTextP.setARGB(255, 0, 0, 0);
-				int size =metrics.heightPixels>metrics.widthPixels? metrics.heightPixels / 24 :metrics.widthPixels/28;
+				int size = metrics.heightPixels > metrics.widthPixels ? metrics.heightPixels / 24 : metrics.widthPixels / 28;
 				overlayTextP.setTextSize(size);
 				int textSize = size + 2;
 				canvas.drawText("FEATURES", 5, 4 + textSize * 2, overlayTextP);
-				canvas.drawText("-Distance in Light-Years", 5, textSize * 3,
-						overlayTextP);
-				canvas.drawText("-Tap \"web\" for info", 5, textSize * 4,
-						overlayTextP);
-				canvas.drawText("-Touch and drag to pan", 5, textSize * 5,
-						overlayTextP);
-				canvas.drawText("-Touch for auto zoom OFF", 5, textSize * 6,
-						overlayTextP);
-				canvas.drawText("-Touch to close this guide", 5, textSize * 7,
-						overlayTextP);
-				canvas.drawText("-Two finger pinch to zoom", 5, textSize * 8,
-						overlayTextP);
-				canvas.drawText("-Shake for a random distance", 5,
-						textSize * 9, overlayTextP);
+				canvas.drawText("-Distance in Light-Years", 5, textSize * 3, overlayTextP);
+				canvas.drawText("-Tap \"" + info + "\" for more info", 5, textSize * 4, overlayTextP);
+				canvas.drawText("-Touch and drag to pan", 5, textSize * 5, overlayTextP);
+				canvas.drawText("-Touch for auto zoom OFF", 5, textSize * 6, overlayTextP);
+				canvas.drawText("-Touch to close this guide", 5, textSize * 7, overlayTextP);
+				canvas.drawText("-Two finger pinch to zoom", 5, textSize * 8, overlayTextP);
+				canvas.drawText("-Shake for a random distance", 5, textSize * 9, overlayTextP);
 
 				int left = 5;
-				if(metrics.widthPixels>metrics.heightPixels)left = metrics.widthPixels/2;
-				canvas.drawText("<  ", left, metrics.heightPixels - controlsHeight
-						- textSize * 1, overlayTextP);
-				canvas.drawText("auto zoom reverse ON", 50+left, metrics.heightPixels
-						- controlsHeight - textSize * 1, overlayTextP);
-				canvas.drawText("<< ", left, metrics.heightPixels - controlsHeight
-						- textSize * 2, overlayTextP);
-				canvas.drawText("jump back one", 50+left, metrics.heightPixels
-						- controlsHeight - textSize * 2, overlayTextP);
-				canvas.drawText("[]", left, metrics.heightPixels - controlsHeight
-						- textSize * 3, overlayTextP);
-				canvas.drawText("display this guide", 50+left, metrics.heightPixels
-						- controlsHeight - textSize * 3, overlayTextP);
-				canvas.drawText(">>", left, metrics.heightPixels - controlsHeight
-						- textSize * 4, overlayTextP);
-				canvas.drawText("jump forward one", 50+left, metrics.heightPixels
-						- controlsHeight - textSize * 4, overlayTextP);
-				canvas.drawText(">", left, metrics.heightPixels - controlsHeight
-						- textSize * 5, overlayTextP);
-				canvas.drawText("auto zoom forward ON", 50+left, metrics.heightPixels
-						- controlsHeight - textSize * 5, overlayTextP);
-				canvas.drawText("CONTROLS", left, metrics.heightPixels
-						- controlsHeight - textSize * 6, overlayTextP);
+				int over = (int) (50 * scale);
+				if (metrics.widthPixels > metrics.heightPixels)
+					left = metrics.widthPixels / 2;
+				canvas.drawText("<  ", left, metrics.heightPixels - controlsHeight - textSize * 1, overlayTextP);
+				canvas.drawText("auto zoom reverse ON", over + left, metrics.heightPixels - controlsHeight - textSize * 1, overlayTextP);
+				canvas.drawText("<< ", left, metrics.heightPixels - controlsHeight - textSize * 2, overlayTextP);
+				canvas.drawText("jump back one", over + left, metrics.heightPixels - controlsHeight - textSize * 2, overlayTextP);
+				canvas.drawText("[]", left, metrics.heightPixels - controlsHeight - textSize * 3, overlayTextP);
+				canvas.drawText("display this guide", over + left, metrics.heightPixels - controlsHeight - textSize * 3, overlayTextP);
+				canvas.drawText(">>", left, metrics.heightPixels - controlsHeight - textSize * 4, overlayTextP);
+				canvas.drawText("jump forward one", over + left, metrics.heightPixels - controlsHeight - textSize * 4, overlayTextP);
+				canvas.drawText(">", left, metrics.heightPixels - controlsHeight - textSize * 5, overlayTextP);
+				canvas.drawText("auto zoom forward ON", over + left, metrics.heightPixels - controlsHeight - textSize * 5, overlayTextP);
+				canvas.drawText("CONTROLS", left, metrics.heightPixels - controlsHeight - textSize * 6, overlayTextP);
 
 			}
 		}// ////////////END ONDRAW
+
+		private void drawTransparentBackground() {
+			if (canvas == null)
+				return;
+			Paint overlayP = new Paint();
+			overlayP.setARGB(190, 190, 190, 190);
+			canvas.drawRect(0, 0, metrics.widthPixels, metrics.heightPixels, overlayP);
+		}
 
 		public void changeRotationBy(float f) {
 			angle += f;
@@ -400,15 +410,13 @@ canvas.drawARGB(255, 0, 0, 0);
 		//
 		private void setBM(float doWhat) {
 
-			index += (int)doWhat;
+			index += (int) doWhat;
 			if (index >= IMAGE_NAMES_ARRAY.length)
 				index = 0;
 			if (index < -LOCAL_ASTRONOMY.length)
 				index = -1;
-			if (dynamicImages.get(String
-					.valueOf(getResIdFromIndex((int) (index + doWhat)))) == null)
-				new AsyncLruLoader(myImV)
-						.execute(getResIdFromIndex((int) (index + doWhat)));
+			if (dynamicImages.get(String.valueOf(getResIdFromIndex((int) (index + doWhat)))) == null)
+				new AsyncLruLoader(myImV).execute(getResIdFromIndex((int) (index + doWhat)));
 
 			final String imageKey = String.valueOf(getResIdFromIndex(index));
 			bm = getBitmapFromDiskCache(imageKey);
@@ -422,19 +430,15 @@ canvas.drawARGB(255, 0, 0, 0);
 			else if (doWhat == -1)
 				setScaleMax();
 			// reposition to center
-			transX = metrics.widthPixels / 2 - scalar * (float) (bm.getWidth())
-					/ 2;
-			transY = metrics.heightPixels / 2 - scalar
-					* (float) (bm.getHeight()) / 2;
+			transX = metrics.widthPixels / 2 - scalar * (float) (bm.getWidth()) / 2;
+			transY = metrics.heightPixels / 2 - scalar * (float) (bm.getHeight()) / 2;
 			// calculate a matching color for text
 			int red = 0, green = 0, blue = 0;
 			int counter = 0;
 			int colorLimit = 0;
 			for (; counter < 50;) {
-				int px = bm.getWidth() / 2 - bm.getWidth() / 6 + 2
-						* ((int) Math.random() * bm.getWidth()) / 6;
-				int py = bm.getHeight() / 2 - bm.getHeight() / 6 + 2
-						* ((int) Math.random()) / 6;
+				int px = bm.getWidth() / 2 - bm.getWidth() / 6 + 2 * ((int) Math.random() * bm.getWidth()) / 6;
+				int py = bm.getHeight() / 2 - bm.getHeight() / 6 + 2 * ((int) Math.random()) / 6;
 				int pixel = bm.getPixel(px, py);
 
 				int r = pixel >> 16 & 0xff;
@@ -459,8 +463,7 @@ canvas.drawARGB(255, 0, 0, 0);
 				return;
 			}
 
-			textPaint.setARGB(90, (int) (FACTOR * red), (int) (FACTOR * green),
-					(int) (FACTOR * blue));
+			textPaint.setARGB(90, (int) (FACTOR * red), (int) (FACTOR * green), (int) (FACTOR * blue));
 		}
 
 		// ///////////////////////////////////////
@@ -474,8 +477,7 @@ canvas.drawARGB(255, 0, 0, 0);
 		// used to create zoom effect
 		public void changeScalarBy(float change) {
 			scalar += change;
-			changePositionBy(change * bm.getWidth() / 2,
-					change * bm.getHeight() / 2);
+			changePositionBy(change * bm.getWidth() / 2, change * bm.getHeight() / 2);
 			if (scalar >= SCALARK) {
 				setBM(1);
 			}
@@ -575,7 +577,7 @@ canvas.drawARGB(255, 0, 0, 0);
 		savedInstanceState.putInt(INDEX, myImV.index);
 		savedInstanceState.putFloat(SAVE_SIZE, myImV.scalar);
 		savedInstanceState.putInt(CATEGORY, 0);
-		savedInstanceState.putBoolean(GUIDE,myImV.displayControlsHelp);
+		savedInstanceState.putBoolean(GUIDE, myImV.displayControlsHelp);
 		// if you say so ...
 		// Always call the superclass so it can save the view hierarchy state
 		super.onSaveInstanceState(savedInstanceState);
@@ -584,9 +586,8 @@ canvas.drawARGB(255, 0, 0, 0);
 	@Override
 	protected void onResume() {
 		super.onResume();
-		mSensorManager.registerListener(this,
-				mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
-				SensorManager.SENSOR_DELAY_NORMAL);
+		mSensorManager
+				.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_NORMAL);
 	}
 
 	@Override
