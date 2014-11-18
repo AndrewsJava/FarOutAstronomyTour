@@ -25,9 +25,9 @@ import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
 import android.view.ViewGroup;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 
 public class DeepSkyViewer extends Activity implements OnTouchListener, SensorEventListener, StringConstantArrays {
 
@@ -48,6 +48,8 @@ public class DeepSkyViewer extends Activity implements OnTouchListener, SensorEv
 	private SensorManager mSensorManager;
 	private Bitmap controlsBM;
 	Button hideMe;
+	float scale = 0f;
+	float textHeightDensityPixels = 24.0f;
 	private final OnClickListener hideViewOnClickListener = new OnClickListener() {
 
 		@Override
@@ -146,8 +148,8 @@ public class DeepSkyViewer extends Activity implements OnTouchListener, SensorEv
 			break;
 		case MotionEvent.ACTION_UP:
 			fingers--;
-			if (arg1.getX(0) > metrics.widthPixels - 80 && arg1.getY(0) < 40 && Math.abs(x - arg1.getX(0)) < 6
-					&& Math.abs(y - arg1.getY(0)) < 6) {
+			if (arg1.getX(0) > metrics.widthPixels - 80 * scale && arg1.getY(0) < textHeightDensityPixels * scale
+					&& Math.abs(x - arg1.getX(0)) < 6 && Math.abs(y - arg1.getY(0)) < 6) {
 				Uri website = null;
 				if (myImV.getIndex() >= 0)
 					website = Uri.parse(APOD_BASE + APOD_ADDRESS_TAG[myImV.getIndex()]);
@@ -155,21 +157,7 @@ public class DeepSkyViewer extends Activity implements OnTouchListener, SensorEv
 					website = Uri.parse(WIKI_BASE + LOCAL_ASTRONOMY[LOCAL_ASTRONOMY.length + myImV.getIndex()]);
 
 				if (website != null) {
-					ScrollView overlay = new ScrollView(this);
-					LinearLayout container = new LinearLayout(this);
-					container.setOrientation(LinearLayout.VERTICAL);
-					overlay.addView(container);
-					container.addView(hideMe);
-
-					WebView webview = new WebView(this);
-
-					container.addView(webview);
-
-					webview.loadUrl(website.toString());
-					// webview.setBackgroundColor(0x00000000);
-					// webview.setLayerType(WebView.LAYER_TYPE_SOFTWARE, null);
-
-					setContentView(overlay);
+					showInfoWebView(website.toString());
 				}
 			} else if (arg1.getY(0) > metrics.heightPixels - controlsHeight - 20) {
 				if (arg1.getX(0) < metrics.widthPixels / 5) {
@@ -199,6 +187,35 @@ public class DeepSkyViewer extends Activity implements OnTouchListener, SensorEv
 		}
 		myImV.invalidate();
 		return true;
+	}
+
+	private void showInfoWebView(String website) {
+		// LinearLayout superlayout = new LinearLayout(this);
+		// ScrollView overlay = new ScrollView(this);
+		LinearLayout container = new LinearLayout(this);
+		container.setOrientation(LinearLayout.VERTICAL);
+		// overlay.addView(container);
+		container.addView(hideMe);
+
+		WebView webview = new WebView(this);
+		container.addView(webview);
+		webview.setWebViewClient(new WebViewClient() {
+			public boolean shouldOverrideUrlLoading(WebView view, String url) {
+				// do your handling codes here, which url is the
+				// requested url
+				// probably you need to open that url rather than
+				// redirect:
+				view.loadUrl(url);
+				return false; // then it is not handled by default
+								// action
+			}
+		});
+
+		webview.loadUrl(website);
+		// webview.setBackgroundColor(0x00000000);
+		// webview.setLayerType(WebView.LAYER_TYPE_SOFTWARE, null);
+
+		setContentView(container);
 	}
 
 	private void processImageChanges(MotionEvent event) {
@@ -265,7 +282,6 @@ public class DeepSkyViewer extends Activity implements OnTouchListener, SensorEv
 		float controlsAlpha = 30;
 		float textHeight = 0f;
 		private Paint textPaint = new Paint();
-		float scale = 0f;
 		String units;
 		String info;
 		Canvas canvas;
@@ -275,7 +291,6 @@ public class DeepSkyViewer extends Activity implements OnTouchListener, SensorEv
 			displayControlsHelp = true;
 			units = getString(R.string.units);
 			info = getString(R.string.info);
-			float textHeightDensityPixels = 24.0f;
 
 			// Convert the dips to pixels
 			scale = getContext().getResources().getDisplayMetrics().density;
