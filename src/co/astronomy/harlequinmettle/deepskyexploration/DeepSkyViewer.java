@@ -18,7 +18,6 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.util.LruCache;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -319,7 +318,7 @@ public class DeepSkyViewer extends Activity implements OnTouchListener, SensorEv
 
 			// Convert the dips to pixels
 			scale = getContext().getResources().getDisplayMetrics().density;
-			Log.v("scale", "" + scale);
+			// Log.v("scale", "" + scale);
 			textHeight = (int) (textHeightDensityPixels * scale + 0.5f);
 			textPaint.setTextSize(textHeight);
 
