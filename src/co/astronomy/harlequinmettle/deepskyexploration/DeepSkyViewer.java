@@ -19,11 +19,11 @@ import android.os.Bundle;
 import android.support.v4.util.LruCache;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
-import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
@@ -50,24 +50,66 @@ public class DeepSkyViewer extends Activity implements OnTouchListener, SensorEv
 	Button hideMe;
 	float scale = 0f;
 	float textHeightDensityPixels = 24.0f;
+	WebView webview;
+	LinearLayout container;
 	private final OnClickListener hideViewOnClickListener = new OnClickListener() {
 
 		@Override
 		public void onClick(View v) {
 			setContentView(myImV);
-			ViewGroup parent = (ViewGroup) v.getParent();
-			parent.removeView(v);
 
 		}
 
 	};
+	private boolean hasResumedTour = true;
+
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+		if (event.getAction() == KeyEvent.ACTION_DOWN) {
+			switch (keyCode) {
+			case KeyEvent.KEYCODE_BACK:
+				if (webview.canGoBack()) {
+					webview.goBack();
+				} else if (!hasResumedTour) {
+					setContentView(myImV);
+
+					hasResumedTour = true;
+				} else {
+					finish();
+				}
+				return true;
+			}
+
+		}
+		return super.onKeyDown(keyCode, event);
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		webview = new WebView(this);
 		hideMe = new Button(this);
 		hideMe.setText("close");
+		hideMe.setBackgroundColor(0xffcddcff);
 		hideMe.setOnClickListener(hideViewOnClickListener);
+		container = new LinearLayout(this);
+		container.setOrientation(LinearLayout.VERTICAL);
+		// overlay.addView(container);
+		container.addView(hideMe);
+
+		container.addView(webview);
+		webview.setWebViewClient(new WebViewClient() {
+			public boolean shouldOverrideUrlLoading(WebView view, String url) {
+				// do your handling codes here, which url is the
+				// requested url
+				// probably you need to open that url rather than
+				// redirect:
+				view.loadUrl(url);
+				return false; // then it is not handled by default
+								// action
+			}
+		});
+
 		// always set metrics for screen width and height
 		getWindowManager().getDefaultDisplay().getMetrics(metrics);
 		controlsHeight = metrics.heightPixels / 12;
@@ -148,7 +190,7 @@ public class DeepSkyViewer extends Activity implements OnTouchListener, SensorEv
 			break;
 		case MotionEvent.ACTION_UP:
 			fingers--;
-			if (arg1.getX(0) > metrics.widthPixels - 80 * scale && arg1.getY(0) < textHeightDensityPixels * scale
+			if (arg1.getX(0) > metrics.widthPixels - 60 * scale && arg1.getY(0) < textHeightDensityPixels * scale
 					&& Math.abs(x - arg1.getX(0)) < 6 && Math.abs(y - arg1.getY(0)) < 6) {
 				Uri website = null;
 				if (myImV.getIndex() >= 0)
@@ -192,25 +234,8 @@ public class DeepSkyViewer extends Activity implements OnTouchListener, SensorEv
 	private void showInfoWebView(String website) {
 		// LinearLayout superlayout = new LinearLayout(this);
 		// ScrollView overlay = new ScrollView(this);
-		LinearLayout container = new LinearLayout(this);
-		container.setOrientation(LinearLayout.VERTICAL);
-		// overlay.addView(container);
-		container.addView(hideMe);
-
-		WebView webview = new WebView(this);
-		container.addView(webview);
-		webview.setWebViewClient(new WebViewClient() {
-			public boolean shouldOverrideUrlLoading(WebView view, String url) {
-				// do your handling codes here, which url is the
-				// requested url
-				// probably you need to open that url rather than
-				// redirect:
-				view.loadUrl(url);
-				return false; // then it is not handled by default
-								// action
-			}
-		});
-
+		hasResumedTour = false;
+		webview.clearHistory();
 		webview.loadUrl(website);
 		// webview.setBackgroundColor(0x00000000);
 		// webview.setLayerType(WebView.LAYER_TYPE_SOFTWARE, null);
